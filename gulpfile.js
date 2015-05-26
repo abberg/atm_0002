@@ -31,7 +31,9 @@ gulp.task('replace', function(){
         'css': '',
         'js': ''
     }))
-    .pipe(gulp.dest('./dist/' + currentFolder + '/'));
+    .pipe(gulp.dest('./dist/' + currentFolder + '/'))
+    .pipe(git.add())
+    .pipe(git.commit('remove controlbar from index'));
 });
 
 gulp.task('copy', function(){
