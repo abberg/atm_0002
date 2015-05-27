@@ -6,6 +6,8 @@
 			camera = three.camera(),
 			renderer = three.renderer(),
 			simplex = new SimplexNoise(),
+			planeWidth = 10,
+			planeHeight = 10,
 			container,
 			model,
 			previousModel,
@@ -16,9 +18,9 @@
 
 			init = function(){
 				var subdivisions = 25,
-					geometry = new THREE.PlaneGeometry( 10, 10, subdivisions, subdivisions ),
+					geometry = new THREE.PlaneGeometry( planeWidth, planeHeight, subdivisions, subdivisions ),
 					material = new THREE.MeshPhongMaterial( { color: 0xffffff, wireframe: true, transparent: true, opacity:0.75} ),
-					pointGeometry = new THREE.PlaneBufferGeometry( 10, 10, subdivisions, subdivisions ),
+					pointGeometry = new THREE.PlaneBufferGeometry( planeWidth, planeHeight, subdivisions, subdivisions ),
 					pointMaterial = new THREE.PointCloudMaterial({color: 0xffffff, size: 3, sizeAttenuation: false, transparent: true, opacity:0.25}),
 					light = new THREE.PointLight( 0xffffff, 1, 15);
 
@@ -49,15 +51,31 @@
 			update = function(timestep){
 				var rotationalVelocity = 0.00005,
 					zpos,
-					pointIndex = 2;
+					pointIndex = 2,
+					xpos,
+					ypos,
+					noiseScale = 3.2;
 
 				mesh.geometry.vertices.forEach(function(vertex){
 					
 					tempVert.copy(vertex);
 					tempVert.add(position);
 					
-					zpos =  simplex.noise2D(tempVert.x * 0.2, tempVert.y * 0.2);
+					zpos = fbm(tempVert);
+
+					// here's the magic, the sin envelope pushes 
+					// the noise up in the middle and down at the side.
+					// First put the x and y position in the range of 0 - Math.PI
+					xpos = ( ( vertex.x + ( planeWidth * 0.5 ) ) / planeWidth ) * Math.PI;
+					ypos = ( ( vertex.y + ( planeHeight * 0.5 ) ) / planeHeight ) * Math.PI;
+					// then sin and scale it up for drama!
+					zpos *= Math.sin( xpos ) * noiseScale;
+					zpos *= Math.sin( ypos ) * noiseScale;
 					
+					if(zpos < 0 ){
+						zpos = 0;
+					}
+
 					vertex.z = zpos;
 					points.geometry.attributes.position.array[pointIndex] = zpos;
 					pointIndex += points.geometry.attributes.position.itemSize;
@@ -74,6 +92,24 @@
 
 				camera.lookAt(container.position);
 				
+			},
+
+			fbm = function(vertex){
+				var i,
+					octaves = 3,
+					total = 0,
+					gain = 0.5,
+					lacunarity = 2,
+					frequency = 0.1,
+					amplitude = gain;
+				
+				for (i = 0; i < octaves; ++i){
+					total += simplex.noise2D(vertex.x * frequency, vertex.y * frequency) * amplitude;         
+					frequency *= lacunarity;
+					amplitude *= gain;
+				}
+
+				return total;
 			},
 			
 			draw = function(interpolation){
